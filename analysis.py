@@ -27,7 +27,7 @@ import statsmodels.api as sm
 data_files = os.path.join(os.pardir, "data")
 e_data = data_files+"/ELEC.txt"
 s_data = data_files+"/SEDS.txt"
-reg_pattern = re.compile('Net Generation : .*?: .*?: All Sectors : Annual')
+reg_pattern = re.compile('Net Generation : .*?: .*?: All Sectors : Annual',re.IGNORECASE)
 dataset = list()
 names = list()
 
