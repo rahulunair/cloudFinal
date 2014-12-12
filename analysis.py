@@ -25,22 +25,37 @@ import statsmodels.api as sm
 # global variables
 
 data_files = os.path.join(os.pardir, "data")
+print "parent_directory:", data_files
 e_data = data_files+"/ELEC.txt"
 s_data = data_files+"/SEDS.txt"
 reg_pattern = re.compile('Net Generation : .*?: .*?: All Sectors : Annual')
 dataset = list()
 names = list()
 
-
-
+'''
 state_names = [state.name for state in states.STATES]
 #print state_names
 
 with open(e_data) as fh:
-	for r in fh:
-		line = json.loads(r)
+	for l in fh:
+		line = json.loads(l)
+		print line
 		if reg_pattern.search(line['name']):
+			print "1"
 			dataset.append(line)
-for i in dataset:
-	names.append(i['name'])
-print (names)	
+#for i in dataset:
+#	names.append(i['name'])
+#print (names)	
+'''
+
+data_match = re.compile('/Net Generation : .*?: .*?: All Sectors : Annual/i')
+
+
+raw_data = []
+with open(e_data) as myfile:
+    for row in myfile:
+        line = json.loads(row)
+        if data_match.search(line['name']):
+            print line
+            raw_data.append(line)
+

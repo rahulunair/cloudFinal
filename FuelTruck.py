@@ -23,7 +23,7 @@ class FuelTruck(object):
     def _create_views(self):
         count_map = 'function(doc) { emit(doc.id, 1); }'
         count_reduce = 'function(keys, values) { return sum(values); }'
-        view = couchdb.design.ViewDefinition('record', 'count_records', count_map, reduce_fun=count_reduce)
+        view = couchdb.design.ViewDefinition('energy_data', 'count_records', count_map, reduce_fun=count_reduce)
         view.sync(self.db)
 
         get_data = 'function(doc) { emit(("0000000000000000000"+doc.id).slice(-19), doc); }'
