@@ -28,74 +28,291 @@ data_files = os.path.join(os.pardir, "data")
 print "parent_directory:", data_files
 e_data = data_files+"/ELEC.txt"
 s_data = data_files+"/SEDS.txt"
-#regex for gathering required data
-reg_pattern = re.compile('Net Generation : .*?: .*?: All Sectors : Annual',re.IGNORECASE)
-dataset = list()
-names = list()
-
+#regex for gathering required da
+db_conn=sqlite3.connect('final_proj1.db');#creating the db connection
+cur=db_conn.cursor();# assigning the cursor to the db connection
 state_names = [state.name for state in states.STATES]
-#print state_names
 
+# script for creating tables
+table_creation='''drop table states;
+drop table year;
+drop table source_type;
+drop table state_production;
+drop table IMP_EXP;
+drop table state_imp_exp;
+
+CREATE TABLE states( ID integer(10) not null,
+State_Name text(100) not null,
+CONSTRAINT states_pk PRIMARY KEY (ID)
+);
+
+CREATE TABLE year( ID integer(10) not null,
+year date not null,
+CONSTRAINT year_pk PRIMARY KEY (ID)
+);
+
+
+CREATE TABLE source_type( ID integer(10) not null,
+Source_Name text(100) not null,
+Source_Description text(100) not null,
+CONSTRAINT source_pk PRIMARY KEY (ID)
+);
+
+CREATE TABLE state_production( ID integer(10) not null,
+Value real(100) not null,
+source_id integer(10) not null,
+state_id integer(10) not null,
+year_id integer(10) not null,
+CONSTRAINT state_prod_pk PRIMARY KEY (ID),
+CONSTRAINT state_fk
+    FOREIGN KEY (state_id)
+    REFERENCES states(state_id),
+CONSTRAINT source_fk
+    FOREIGN KEY (source_id)
+    REFERENCES source_type(source_id),
+CONSTRAINT year_fk
+    FOREIGN KEY (year_id)
+    REFERENCES source_type(year_id))    ;
+
+CREATE TABLE IMP_EXP( ID integer(10) not null,
+Type text(10) not null,
+CONSTRAINT IMP_EXP_pk PRIMARY KEY (ID)
+);    
+
+CREATE TABLE state_imp_exp( ID integer(10) not null,
+Value real(100) not null,
+type_id integer(10) not null,
+state_id integer(10) not null,
+year_id integer(10) not null,
+CONSTRAINT state_imp_exp_pk PRIMARY KEY (ID),
+CONSTRAINT state_fk FOREIGN KEY (state_id) REFERENCES states(state_id),
+CONSTRAINT year_fk FOREIGN KEY (year_id) REFERENCES states(year_id),
+CONSTRAINT type_fk FOREIGN KEY (type_id) REFERENCES IMP_EXP(type_id));'''
+
+
+
+        
+
+
+
+
+#regex for gathering electricity production data
+reg_elec_prod = re.compile('Net Generation : .*?: .*?: All Sectors : Annual',re.IGNORECASE)
+elec_prod_dataset = list()
+     
 with open(e_data) as fh:
-    for r in fh:
-        line = json.loads(r)
-        if reg_pattern.search(line['name']):
-            dataset.append(line)
-for i in dataset:
-    names.append(i['name'])
-#print (names)
+	for r in fh:
+		line = json.loads(r)
+		if reg_elec_prod.search(line['name']):
+			elec_prod_dataset.append(line)
 
-#regex for extracting data for US state only
-reg_us_state = re.compile('Net Generation : .*? : (.*?) : All Sectors : Annual',re.IGNORECASE)
+#regex for extracting electricity production data for US state only
+reg_us_state_elec_prod = re.compile('Net Generation : .*? : (.*?) : All Sectors : Annual',re.IGNORECASE)
+elec_prod_filtered_dataset = list()
+elec_prod_filtered_dataset_name=list()
 
-#filtering out US state list only
-filtered_data = []
-for i in dataset:
+#filtering out data for US state  only
+
+for i in elec_prod_dataset:
     state_name = i['name']
-    if reg_us_state.findall(state_name)[0] in state_names:
-        filtered_data.append(i)
+    if reg_us_state_elec_prod.findall(state_name)[0] in state_names:
+        elec_prod_filtered_dataset_name.append(i['name'])    
+        elec_prod_filtered_dataset.append(i)
 
-filtered_state_lst = []
-for i in filtered_data:
-    filtered_state_lst.append(i['name'])
-#print filtered_state_lst
+#print elec_prod_filtered_dataset
+#print elec_prod_filtered_dataset_name
 
-#regex for extracting distinct descrtions
-reg_dis_name = re.compile('Net Generation : (.*?) : .*? : All Sectors : Annual',re.IGNORECASE)
+#regex for extracting distinct source_type
+reg_dis_source_type = re.compile('Net Generation : (.*?) : .*? : All Sectors : Annual',re.IGNORECASE)
 
-#set up dictionary to store distinct descrtions
-distnct_des = defaultdict(str)
+#set up dictionary to store distinct source_type
+distnct_source_type = defaultdict(str)
 
-for i in filtered_data:
-    name = i['name']
-    unique_name = reg_dis_name.findall(i['name'])[0]
-    distnct_des[unique_name] = i['description']
+for i in elec_prod_filtered_dataset:
+    unique_name = reg_dis_source_type.findall(i['name'])[0]
+    distnct_source_type[unique_name] = i['description']
 
-#print distnct_des
+distnct_source_type = {key:value.split(';')[0] for key, value in distnct_source_type.items()}
 
-#Create dictionary for all the sourcewise electricity data
+#set up dictionary to store distinct years
+distnct_year = defaultdict()
 
-#regex for statewise and sourcewise data grouping
-state_match = re.compile('Net Generation : .*? : (.*?) : All Sectors : Annual',re.IGNORECASE)
-source_match = re.compile('Net Generation : (.*?) : .*? : All Sectors : Annual',re.IGNORECASE)
+for i in elec_prod_filtered_dataset:
+    data=i['data']
+    for x in data:
+        unique_name = x[0]
+        distnct_year[unique_name] = unique_name
+
+#Create dictionary for all the sourcewise electricity production data
 
 dict_total_elec = defaultdict(dict)
 
 #loop through filtered_data to populate dict_total_elec
-for i in filtered_data:
+for i in elec_prod_filtered_dataset:
     dict_year = {}
     dict_source = {}
     data = i['data']
     name = i['name']
-    state = state_match.findall(name)[0]
-    source = source_match.findall(name)[0]
+    state = reg_us_state_elec_prod.findall(name)[0]
+    source = reg_dis_source_type.findall(name)[0]
     #changing source to all lowercase, placing _ instead of spaces, and removing parentheses
     source = source.replace(" ","_").replace("(","").replace(")","").lower()
     for pair in data:
         dict_year[pair[0]] = pair[1]
     dict_total_elec[state][source] = dict_year
 
+
+source_type_id=None
+year_val=None
+year_id=None
+
+###############################
+
+def get_ie(location):
+    data_match = re.compile('Electricity .*? the United States, .*?',re.IGNORECASE)
+    units_match = re.compile('Billion Btu',re.IGNORECASE)
+    raw_data = []
+    with open(location) as myfile:
+        for row in myfile:
+            line = json.loads(row)
+            if (data_match.search(line['name'])) and (units_match.search(line['units'])):
+                raw_data.append(line)
+        return raw_data
+raw_data = get_ie(s_data)
+print len(raw_data)
+
+
+def filter_data(raw_data):
+    the_range = len(raw_data)
+    for number in range(the_range):
+        int_numb = int(number)
+        filtered_data = [x for x in raw_data[int_numb]['data'] if int(x[0]) > 2000]
+        raw_data[int_numb]['data'] = filtered_data
+    return raw_data
+
+filtered_data = filter_data(raw_data)
+
+def get_list_of_names(json_data):
+    names = []
+    for x in json_data:
+        names.append(x['name'])
+    return names
+
+names = get_list_of_names(filtered_data)
+print len(names)
+print names[0]
+#set up regular expressions to match the state and source
+state_match = re.compile('Net Generation : .*? : (.*?) : All Sectors : Annual')
+source_match = re.compile('Net Generation : (.*?) : .*? : All Sectors : Annual')
+
+#create dictionary to store results
+
+total_dict = defaultdict(dict)
+
+#loop through filtered_data to populate data_dict
+def make_dict(json_data):
+    for x in json_data:
+        year_dict = {}
+        source_dict = {}
+        #The list of lists
+        data = x['data']
+        # The name
+        name = x['name']
+        state = name[45:]
+        source = name[:18]
+        #change the source to all lowercase,  _ instead of spaces, and no parentheses
+        source = source.lower()
+        for pair in data:
+            year_dict[pair[0]] = pair[1]
+        total_dict[state][source] = year_dict
+    return total_dict
+
+
+total_dict = make_dict(filtered_data)
+print total_dict['Texas']
+
 states = []
+sources = []
+
+for state, source_dict in total_dict.iteritems():
+    states.append(state)
+    sources.append(pd.DataFrame.from_dict(source_dict))
+    
+import_export_frame = pd.concat(sources, keys=states)
+import_export_frame.fillna(0, inplace=True)
+import_export_frame.index.names = ['state','year']
+import_export_btus = import_export_frame
+import_export_btus.columns = [column.replace(" ","_") for column in import_export_btus.columns]
+print import_export_btus.head()
+
+import_export = import_export_btus * 0.29307107
+
+import_export['export_minus_import'] = import_export.electricity_export - import_export.electricity_import
+print import_export.head()
+
+
+
+
+try:
+        cur.executescript(table_creation);
+        print ('tables created')
+        for i in range(len(state_names)):
+                cur.execute("insert into states values (?,?)", (i,state_names[i]));
+        db_conn.commit();
+        cur.execute("select *  from states")
+        state_lst=cur.fetchall()
+        #print state_lst
+        i=0
+        for x in distnct_source_type.keys():
+                cur.execute("insert into source_type values (?,?,?)", (i,x,distnct_source_type[x]));
+                i=i+1
+        cur.execute("select *  from source_type")
+        src_lst=cur.fetchall()
+        #print src_lst
+        i=0
+        for x in distnct_year.keys():
+                cur.execute("insert into year values (?,?)", (i,x));
+                i=i+1
+        cur.execute("select *  from year")
+        yr_lst=cur.fetchall()
+        #print yr_lst
+        i=0
+        for c in state_names:
+                state_name=(c,)
+                for r in cur.execute("select id from states where State_Name=?",state_name):
+                        state_id=r[0]
+                        for x in dict_total_elec[state_name[0]]:
+                                source_name=(x,)
+                                for a in cur.execute("select id from Source_type where Source_Name =?", source_name):
+                                    source_type_id=a[0]
+                                if source_type_id:
+                                    for z in dict_total_elec[state_name[0]][source_name[0]]:
+                                        year_val=(z,)
+                                        data_val=dict_total_elec[state_name[0]][source_name[0]][year_val[0]]
+                                        if data_val:
+                                                for year_id in cur.execute("select id from year where year=?",(year_val)):
+                                                        cur.execute("insert into state_production values (?,?,?,?,?)", (i,data_val,source_type_id,state_id,year_id[0]));  
+                                                        i=i+1
+        cur.execute("select * from state_production")
+        st_prd=cur.fetchall()
+        #print st_prd
+        cur.execute('''select states.State_Name,year.year,source_type.Source_Name,sp.value from states,source_type,year,state_production sp where sp.state_id=states.id and sp.year_id=year.id and sp.source_id=source_type.id
+                     and states.State_Name="Mississippi"''')
+        q=cur.fetchall()
+        #print 'state,year,source_type,prod_val'
+        #print q
+        
+except:
+     print "db_error"
+     raise
+finally:
+     db_conn.close()
+
+
+
+
+
+'''states = []
 sources = []
 
 for state, source_dict in dict_total_elec.iteritems():
@@ -141,9 +358,9 @@ group_of_sources_frame = pd.concat([renewable_energy, natural_gas, coal_energy, 
 group_of_sources_frame.columns = ['renewable_energy', 'natural_gas','coal_energy','nuclear_energy','other_energy']
 group_of_sources_frame['all_sources'] = group_of_sources_frame.renewable_energy + group_of_sources_frame.natural_gas + group_of_sources_frame.coal_energy + group_of_sources_frame.nuclear_energy + group_of_sources_frame.other_energy
 
-#group_of_sources_frame.head()
+#group_of_sources_frame.head()'''
 
-sales_dataset = list()
+'''sales_dataset = list()
 names = list()
 sales_dict = defaultdict(str)
 #regex for statewise sales data
@@ -158,7 +375,7 @@ with open(e_data) as fh:
 
           
 for i in sales_dataset:
-    names.append(i['name'])
+	names.append(i['name'])
 print names
 
 df = pd.DataFrame(sales_dict)
@@ -216,23 +433,116 @@ total_sales_frame = pivot_table(d4, values = 'Sales', rows = ['state','year'], c
 
 total_sales_frame.columns = [column.lower().replace(" ","_") for column in total_sales_frame.columns]
 total_sales_frame.fillna(0, inplace=True)
-total_sales_frame.head()
+#total_sales_frame.head()
+
+######################################
+
+def get_ie(location):
+    data_match = re.compile('Electricity .*? the United States, .*?',re.IGNORECASE)
+    units_match = re.compile('Billion Btu',re.IGNORECASE)
+    raw_data = []
+    with open(location) as myfile:
+        for row in myfile:
+            line = json.loads(row)
+            if (data_match.search(line['name'])) and (units_match.search(line['units'])):
+                raw_data.append(line)
+        return raw_data
+#s_location='Mississippi'
+raw_data = get_ie(s_data)
+print len(raw_data)
+
+
+def filter_data(raw_data):
+    the_range = len(raw_data)
+    for number in range(the_range):
+        int_numb = int(number)
+        filtered_data = [x for x in raw_data[int_numb]['data'] if int(x[0]) > 2000]
+        raw_data[int_numb]['data'] = filtered_data
+    return raw_data
+
+filtered_data = filter_data(raw_data)
+
+def get_list_of_names(json_data):
+    names = []
+    for x in json_data:
+        names.append(x['name'])
+    return names
+
+names = get_list_of_names(filtered_data)
+print len(names)
+print names[0]
+#set up regular expressions to match the state and source
+state_match = re.compile('Net Generation : .*? : (.*?) : All Sectors : Annual')
+source_match = re.compile('Net Generation : (.*?) : .*? : All Sectors : Annual')
+
+#create dictionary to store results
+
+total_dict = defaultdict(dict)
+
+#loop through filtered_data to populate data_dict
+def make_dict(json_data):
+    for x in json_data:
+        year_dict = {}
+        source_dict = {}
+        #The list of lists
+        data = x['data']
+        # The name
+        name = x['name']
+        state = name[45:]
+        source = name[:18]
+        #change the source to all lowercase,  _ instead of spaces, and no parentheses
+        source = source.lower()
+        for pair in data:
+            year_dict[pair[0]] = pair[1]
+        total_dict[state][source] = year_dict
+    return total_dict
+
+
+total_dict = make_dict(filtered_data)
+print total_dict['Texas']
+
+states = []
+sources = []
+
+for state, source_dict in total_dict.iteritems():
+    states.append(state)
+    sources.append(pd.DataFrame.from_dict(source_dict))
+    
+import_export_frame = pd.concat(sources, keys=states)
+import_export_frame.fillna(0, inplace=True)
+import_export_frame.index.names = ['state','year']
+import_export_btus = import_export_frame
+import_export_btus.columns = [column.replace(" ","_") for column in import_export_btus.columns]
+print import_export_btus.head()
+
+import_export = import_export_btus * 0.29307107
+
+import_export['export_minus_import'] = import_export.electricity_export - import_export.electricity_import
+print import_export.head()
+
 
 source_combine = DataFrame(group_of_sources_frame.copy())
 source_combine.columns = ["production_" + column for column in group_of_sources_frame.columns]
 sales_combine = DataFrame(total_sales_frame.copy())
 sales_combine.columns = ["sales_" + column for column in total_sales_frame.columns]
-'''price_combine = DataFrame(price.copy())
-price_combine.columns = ["price_" + column for column in price_combine.columns]
-revenue_combine = DataFrame(revenue.copy())
-revenue_combine.columns = ["revenue_" + column.lower() for column in revenue_combine.columns]'''
-all_data = pd.concat([source_combine,sales_combine], join="inner", axis=1)
+#price_combine = DataFrame(price.copy())
+#price_combine.columns = ["price_" + column for column in price_combine.columns]
+#revenue_combine = DataFrame(revenue.copy())
+#revenue_combine.columns = ["revenue_" + column.lower() for column in revenue_combine.columns]
+all_data = pd.concat([source_combine,import_export,sales_combine], join="inner", axis=1)
 all_data.head()
 
 statewise_yearly_average = all_data.groupby(level=1).apply(np.mean)
-statewise_yearly_average.head()
+print statewise_yearly_average.head()'''
 
-state_inp=raw_input('Enter the state name : ')
+
+
+
+
+
+
+
+'''state_inp=raw_input('Enter the state name : ')
 
 def production_plot_by_state(state_nm):
     curve_col_name = ['renewable_energy','natural_gas','coal_energy','nuclear_energy','other_energy']
@@ -256,12 +566,13 @@ def production_plot_by_state(state_nm):
 
 
 for state_inp in sorted(state_names):
-    production_plot_by_state(state_inp)
+    production_plot_by_state(state_inp)'''
     
     
 
 
                 
+
 
 
 
