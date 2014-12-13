@@ -37,12 +37,12 @@ state_names = [state.name for state in states.STATES]
 #print state_names
 
 with open(e_data) as fh:
-	for r in fh:
-		line = json.loads(r)
-		if reg_pattern.search(line['name']):
-			dataset.append(line)
+    for r in fh:
+        line = json.loads(r)
+        if reg_pattern.search(line['name']):
+            dataset.append(line)
 for i in dataset:
-	names.append(i['name'])
+    names.append(i['name'])
 #print (names)
 
 #regex for extracting data for US state only
@@ -158,7 +158,7 @@ with open(e_data) as fh:
 
           
 for i in sales_dataset:
-	names.append(i['name'])
+    names.append(i['name'])
 print names
 
 df = pd.DataFrame(sales_dict)
@@ -262,7 +262,6 @@ for state_inp in sorted(state_names):
 
 
                 
-
 
 
 
