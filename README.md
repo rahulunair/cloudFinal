@@ -1,4 +1,4 @@
-cloudFinal
+Cloud Final Project
 ==========
 
 Final project for cloud and big data analytics class
