@@ -1,0 +1,4 @@
+# mongo scripts
+
+mongoimport --db energy_data --collection seds_data --type json --file ELEC.txt
+mongoimport --db energy_data --collection seds_data --type json --file SEDS.txt

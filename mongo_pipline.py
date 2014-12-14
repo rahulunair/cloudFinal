@@ -2,6 +2,13 @@ import os
 import collections
 import re
 from MongoConnect import MongoConnect
+
+'''
+This file has modules, which defines views for all the tables and filters for the tables
+for both ELEC and SEDS data from eia. To use this file MongoConnect.py should be configured properly
+and as mentioned in that file, mongodb setup
+'''
+
 #constants
 
 field   = 'name'
