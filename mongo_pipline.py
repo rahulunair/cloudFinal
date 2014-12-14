@@ -79,15 +79,15 @@ def get_ie(field,field_1, query, query_1):  #seds data
 
 # testing modules 
 
-q1_list = find_row(field, e_query_1)
-q2_list = find_name(field, e_query_1)
-e_types = find_uniq_descriptions(field, e_query_2)
-s_list= get_ie(field, field_1, s_query_1, s_query_2)
+q1_list = find_row(field, e_query_1)   #eia_ rows
+q2_list = find_name(field, e_query_1) #eia_names
+e_types = find_uniq_descriptions(field, e_query_2) #distinct energy types
+s_list= get_ie(field, field_1, s_query_1, s_query_2) # seds list based on field name = 'name' and field name = 'unit'
 
 
 #test_list(q1_list)
 #test_list(q2_list)
-test_list(s_list)
+#test_list(s_list)
 
  # closing db
 mongo.close_con()
