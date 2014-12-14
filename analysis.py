@@ -568,7 +568,37 @@ def production_plot_by_state(state_nm):
 for state_inp in sorted(state_names):
     production_plot_by_state(state_inp)'''
     
-    
+ ########################################################################
+ 
+ data_t = range(15)
+data_y = [5,6,15,20,21,22,26,42,45,60,65,68,75,80,79]
+
+def holt_alg(h, y_last, y_pred, T_pred, alpha, beta):
+    pred_y_new = alpha * y_last + (1-alpha) * (y_pred + T_pred * h)
+    pred_T_new = beta * (pred_y_new - y_pred)/h + (1-beta)*T_pred
+    return (pred_y_new, pred_T_new)
+
+def smoothing(t, y, alpha, beta):
+    # initialization using the first two observations
+    pred_y = y[1]
+    pred_T = (y[1] - y[0])/(t[1]-t[0])
+    y_hat = [y[0], y[1]]
+    # next unit time point
+    t.append(t[-1]+1)
+    print t
+    for i in range(2, len(t)):
+        h = t[i] - t[i-1]
+        pred_y, pred_T = holt_alg(h, y[i-1], pred_y, pred_T, alpha, beta)
+        y_hat.append(pred_y)
+    return y_hat
+
+import matplotlib.pyplot as plt
+plt.plot(data_t, data_y, 'x-')
+plt.hold(True)
+
+pred_y = smoothing(data_t, data_y, alpha=.9, beta=0.5)
+plt.plot(data_t[:len(pred_y)], pred_y, 'rx-')
+plt.show()
 
 
                 
